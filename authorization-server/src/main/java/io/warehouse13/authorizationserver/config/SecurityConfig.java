@@ -5,17 +5,22 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.oidc.OidcScopes;
@@ -27,6 +32,8 @@ import org.springframework.security.oauth2.server.authorization.config.annotatio
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
+import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
@@ -36,7 +43,9 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Basic security configuration :
@@ -53,7 +62,9 @@ import java.util.UUID;
 @Configuration
 @Slf4j
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+	private final PasswordEncoder passwordEncoder;
 
 	/**
 	 * A Spring Security filter chain for the Protocol Endpoints.
@@ -70,19 +81,15 @@ public class SecurityConfig {
 		http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
 				// Enable OpenID Connect 1.0
 				.oidc(Customizer.withDefaults());
-		http
+		return http
 				// Redirect to the login page when not authenticated from the authorization endpoint
 				.exceptionHandling((exceptions) -> exceptions
-						.defaultAuthenticationEntryPointFor(
-								new LoginUrlAuthenticationEntryPoint("/login"),
-								new MediaTypeRequestMatcher(MediaType.TEXT_HTML)
-						)
-				)
+						.authenticationEntryPoint(
+								new LoginUrlAuthenticationEntryPoint("/login")))
 				// Accept access tokens for User Info and/or Client Registration
 				.oauth2ResourceServer((resourceServer) -> resourceServer
-						.jwt(Customizer.withDefaults()));
+						.jwt(Customizer.withDefaults())).build();
 
-		return http.build();
 	}
 
 	/**
@@ -96,39 +103,38 @@ public class SecurityConfig {
 	public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http)
 			throws Exception {
 		log.info("### SecurityConfig -> defaultSecurityFilterChain called");
-		http
+		return http
 				.authorizeHttpRequests((authorize) -> authorize
-						.anyRequest().authenticated()
-				)
-				// Form login handles the redirect to the login page from the
-				// authorization server filter chain
-				.formLogin(Customizer.withDefaults());
-
-		return http.build();
-	}
-
-	/**
-	 * An instance of UserDetailsService for retrieving users to authenticate.
-	 * Note: default password decoder is deprecated, it will have to be replaced ASAP
-	 * @return a bean of UserDetailsService
-	 */
-	@Bean
-	@SuppressWarnings("deprecation")
-	public UserDetailsService userDetailsService() {
-		log.info("### SecurityConfig -> userDetailsService called");
-		log.info("### SecurityConfig -> using in memory user details: user / password with role USER");
-		UserDetails userDetails = User
-				.withDefaultPasswordEncoder()
-				.username("user")
-				.password("password")
-				//.withUsername("user")
-				//.password("{noop}password")
-				//.authorities("ROLE_USER")
-				.roles("USER")
+						.requestMatchers(HttpMethod.POST, "api/v1/auth").permitAll()
+						.requestMatchers("/client/**").permitAll()
+						.anyRequest().authenticated())
+				// Form login handles the redirect to the login page from the authorization server filter chain
+				.formLogin(Customizer.withDefaults())
+				.csrf(httpSecurityCsrfConfigurer -> httpSecurityCsrfConfigurer
+						.ignoringRequestMatchers("api/v1/auth")
+						.disable())
 				.build();
-
-		return new InMemoryUserDetailsManager(userDetails);
 	}
+
+
+	// /**
+	// * An instance of UserDetailsService for retrieving users to authenticate.
+	// * Note: default password decoder is deprecated, it will have to be replaced ASAP
+	// * @return a bean of UserDetailsService
+	// */
+	// @Bean
+	// @SuppressWarnings("deprecation")
+	// public UserDetailsService userDetailsService() {
+	// 	log.info("### SecurityConfig -> userDetailsService called");
+	// 	log.info("### SecurityConfig -> using in memory user details: user / password with role USER");
+	// 	UserDetails userDetails = User
+	// 			.withDefaultPasswordEncoder()
+	// 			.username("user")
+	// 			.password("password")
+	// 			.roles("USER")
+	// 			.build();
+	// 	return new InMemoryUserDetailsManager(userDetails);
+	// }
 
 	/**
 	 * An instance of RegisteredClientRepository for managing clients.
@@ -139,7 +145,7 @@ public class SecurityConfig {
 		log.info("### SecurityConfig -> registeredClientRepository called");
 		RegisteredClient oidcClient = RegisteredClient.withId(UUID.randomUUID().toString())
 				.clientId("oidc-client")
-				.clientSecret("{noop}secret")
+				.clientSecret(passwordEncoder.encode("secret"))
 				.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
 				// we retrieve an authorization code to be changed to a token
 				.authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
@@ -157,17 +163,34 @@ public class SecurityConfig {
 		return new InMemoryRegisteredClientRepository(oidcClient);
 	}
 
-	/**
-	 * Define the client setting: we could have defined it in registeredClientRepository method directly
-	 * @return a client settings configuration
-	 */
-	@Bean
-	public ClientSettings clientSettings() {
-		return ClientSettings.builder()
-				.requireProofKey(true)
-				//.requireAuthorizationConsent(true)
-				.build();
-	}
+	 /**
+	  * Define the client setting: we could have defined it in registeredClientRepository method directly
+	  * @return a client settings configuration
+	  */
+	 @Bean
+	 public ClientSettings clientSettings() {
+	 	return ClientSettings.builder()
+	 			.requireProofKey(true)
+	 			//.requireAuthorizationConsent(true)
+	 			.build();
+	 }
+
+//	@Bean
+//	public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer(){
+//		return context -> {
+//			Authentication principal = context.getPrincipal();
+//			if(context.getTokenType().getValue().equals("id_token")){
+//				context.getClaims().claim("token_type", "id token");
+//			}
+//			if(context.getTokenType().getValue().equals("access_token")){
+//				context.getClaims().claim("token_type", "access token");
+//				Set<String> roles = principal.getAuthorities().stream()
+//						.map(GrantedAuthority::getAuthority)
+//						.collect(Collectors.toSet());
+//				context.getClaims().claim("roles", roles).claim("username", principal.getName());
+//			}
+//		};
+//	}
 
 
 	/**
