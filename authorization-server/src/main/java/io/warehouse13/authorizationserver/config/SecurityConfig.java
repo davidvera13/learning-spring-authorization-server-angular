@@ -175,22 +175,46 @@ public class SecurityConfig {
 	 			.build();
 	 }
 
-//	@Bean
-//	public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer(){
-//		return context -> {
-//			Authentication principal = context.getPrincipal();
-//			if(context.getTokenType().getValue().equals("id_token")){
-//				context.getClaims().claim("token_type", "id token");
-//			}
-//			if(context.getTokenType().getValue().equals("access_token")){
-//				context.getClaims().claim("token_type", "access token");
-//				Set<String> roles = principal.getAuthorities().stream()
-//						.map(GrantedAuthority::getAuthority)
-//						.collect(Collectors.toSet());
-//				context.getClaims().claim("roles", roles).claim("username", principal.getName());
-//			}
-//		};
-//	}
+	/**
+	 * We can customize token by adding claims.
+	 * Claims are usually data concerning user such as roles for instance, username, etc.
+	 * by default, token returns
+	 * We have 3 kind of tokens:
+	 * <ul>
+	 *     <li>id_tokens: An ID token is an artifact that proves that
+	 *     	the user has been authenticated. It was introduced by OpenID
+	 *     	Connect (OIDC), an open standard for authentication used by
+	 *     	many identity providers such as Google, Facebook, and, of
+	 *     	course, OAuth</li>
+	 *     <li>access_token: the access token allows a client application
+	 *     	to access a specific resource to perform specific actions on
+	 *     	behalf of the user. That is what is known as a delegated
+	 *     	authorization scenario: the user delegates a client application
+	 *     	to access a resource on their behalf. That means, for example,
+	 *     	that you can authorize your LinkedIn app to access Twitter’s
+	 *     	API on your behalf to cross-post on both social platforms. </li>
+	 *     <li>refresh_token: token that allow to get a new access token: </li>
+	 * </ul>
+	 * Here we add username and roles to the claims
+	 * @return a token customizer
+	 */
+	@Bean
+	public OAuth2TokenCustomizer<JwtEncodingContext> tokenCustomizer(){
+		log.info("### SecurityConfig -> tokenCustomizer called");
+		return context -> {
+			Authentication principal = context.getPrincipal();
+			if(context.getTokenType().getValue().equals("id_token")){
+				context.getClaims().claim("token_type", "id token");
+			}
+			if(context.getTokenType().getValue().equals("access_token")){
+				context.getClaims().claim("token_type", "access token");
+				Set<String> roles = principal.getAuthorities().stream()
+						.map(GrantedAuthority::getAuthority)
+						.collect(Collectors.toSet());
+				context.getClaims().claim("roles", roles).claim("username", principal.getName());
+			}
+		};
+	}
 
 
 	/**
