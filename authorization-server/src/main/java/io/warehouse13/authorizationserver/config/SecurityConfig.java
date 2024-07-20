@@ -5,6 +5,7 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import io.warehouse13.authorizationserver.service.ClientService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -64,6 +65,7 @@ import java.util.stream.Collectors;
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+	private final ClientService clientService;
 	private final PasswordEncoder passwordEncoder;
 
 	/**
@@ -106,12 +108,12 @@ public class SecurityConfig {
 		return http
 				.authorizeHttpRequests((authorize) -> authorize
 						.requestMatchers(HttpMethod.POST, "api/v1/auth").permitAll()
-						.requestMatchers("/client/**").permitAll()
+						.requestMatchers("/api/v1/clients").permitAll()
 						.anyRequest().authenticated())
 				// Form login handles the redirect to the login page from the authorization server filter chain
 				.formLogin(Customizer.withDefaults())
 				.csrf(httpSecurityCsrfConfigurer -> httpSecurityCsrfConfigurer
-						.ignoringRequestMatchers("api/v1/auth")
+						.ignoringRequestMatchers("api/v1/auth", "api/v1/clients")
 						.disable())
 				.build();
 	}
@@ -136,44 +138,46 @@ public class SecurityConfig {
 	// 	return new InMemoryUserDetailsManager(userDetails);
 	// }
 
+	// Note: RegisteredClientRepository that allow to have inMemory client
+	// is handled and stored in db, no need to have a bean
 	/**
 	 * An instance of RegisteredClientRepository for managing clients.
 	 * @return a RegisteredClientRepository bean to retrieve the configured clients
 	 */
-	@Bean
-	public RegisteredClientRepository registeredClientRepository() {
-		log.info("### SecurityConfig -> registeredClientRepository called");
-		RegisteredClient oidcClient = RegisteredClient.withId(UUID.randomUUID().toString())
-				.clientId("oidc-client")
-				.clientSecret(passwordEncoder.encode("secret"))
-				.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-				// we retrieve an authorization code to be changed to a token
-				.authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-				.authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-				.authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-				//.redirectUri("http://127.0.0.1:8080/login/oauth2/code/oidc-client")
-				// at start, we will debug the application no url is actually provided
-				.redirectUri("https://oauthdebugger.com/debug")
-				//.postLogoutRedirectUri("http://127.0.0.1:8080/")
-				.scope(OidcScopes.OPENID)
-				.scope(OidcScopes.PROFILE)
-				.clientSettings(clientSettings())
-				.build();
+	//@Bean
+	//public RegisteredClientRepository registeredClientRepository() {
+	//	log.info("### SecurityConfig -> registeredClientRepository called");
+	//	RegisteredClient oidcClient = RegisteredClient.withId(UUID.randomUUID().toString())
+	//			.clientId("oidc-client")
+	//			.clientSecret(passwordEncoder.encode("secret"))
+	//			.clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+	//			// we retrieve an authorization code to be changed to a token
+	//			.authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+	//			.authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+	//			.authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
+	//			//.redirectUri("http://127.0.0.1:8080/login/oauth2/code/oidc-client")
+	//			// at start, we will debug the application no url is actually provided
+	//			.redirectUri("https://oauthdebugger.com/debug")
+	//			//.postLogoutRedirectUri("http://127.0.0.1:8080/")
+	//			.scope(OidcScopes.OPENID)
+	//			.scope(OidcScopes.PROFILE)
+	//			.clientSettings(clientSettings())
+	//			.build();
+	//	return new InMemoryRegisteredClientRepository(oidcClient);
+	//}
 
-		return new InMemoryRegisteredClientRepository(oidcClient);
-	}
-
-	 /**
-	  * Define the client setting: we could have defined it in registeredClientRepository method directly
-	  * @return a client settings configuration
-	  */
-	 @Bean
-	 public ClientSettings clientSettings() {
-	 	return ClientSettings.builder()
-	 			.requireProofKey(true)
-	 			//.requireAuthorizationConsent(true)
-	 			.build();
-	 }
+	// Note: the client setting is handled and stored in db, no need to have a bean
+	// /**
+	//  * Define the client setting: we could have defined it in registeredClientRepository method directly
+	//  * @return a client settings configuration
+	//  */
+	// @Bean
+	// public ClientSettings clientSettings() {
+	// 	return ClientSettings.builder()
+	// 			.requireProofKey(true)
+	// 			//.requireAuthorizationConsent(true)
+	// 			.build();
+	// }
 
 	/**
 	 * We can customize token by adding claims.
