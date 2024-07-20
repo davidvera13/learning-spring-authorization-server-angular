@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: resource-server
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: 'http://localhost:9000'
+
+###########################################################################################
+#                                 Logging configurations                                  #
+###########################################################################################
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} %green([%thread]) %highlight(%level)  %logger - %msg%n"
+    file: "%d{dd-MM-yyyy HH:mm:ss.SSS} [%thread] %-5level %logger.%M - %msg%n"
+    dateformat: yyyy-MM-dd HH:mm:ss
+  file:
+    name: logs/resource-server.log
+  logback:
+    rollingpolicy:
+      file-name-pattern: logs/archived/resource-server.%d{yyyy-MM-dd}.%i.log
+      max-history: 5
+      max-file-size: 1250MB
+  level:
+    root: WARN
+    io.warehouse13: INFO
+    org.springframework: INFO
+    org.springframework.security: TRACE
+    org.springframework.security.oauth2: TRACE
