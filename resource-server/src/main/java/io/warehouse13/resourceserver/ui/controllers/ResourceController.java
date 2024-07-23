@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ResourceController {
 
 	@GetMapping("/users")
+	@PreAuthorize("hasAnyAuthority('ROLE_USER', 'OIDC_USER', 'SCOPE_openid')")
 	public ResponseEntity<MessageResponse> getUserMessage(Authentication authentication) {
 		log.info(authentication.getAuthorities().toString());
 		log.info(authentication.getPrincipal().toString());

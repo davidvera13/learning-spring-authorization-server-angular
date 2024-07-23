@@ -5,40 +5,38 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import io.warehouse13.authorizationserver.federated.FederatedIdentityAuthenticationSuccessHandler;
+import io.warehouse13.authorizationserver.federated.FederatedIdentityConfigurer;
+import io.warehouse13.authorizationserver.federated.UserRepositoryOAuth2UserHandler;
+import io.warehouse13.authorizationserver.io.repository.GoogleUserRepository;
 import io.warehouse13.authorizationserver.service.ClientService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.core.AuthorizationGrantType;
-import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
-import org.springframework.security.oauth2.core.oidc.OidcScopes;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
+import org.springframework.security.oauth2.server.authorization.InMemoryOAuth2AuthorizationService;
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
-import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
-import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
+import org.springframework.security.web.session.HttpSessionEventPublisher;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -67,6 +65,8 @@ import java.util.stream.Collectors;
 public class SecurityConfig {
 	private final ClientService clientService;
 	private final PasswordEncoder passwordEncoder;
+	private final GoogleUserRepository googleUserRepository;
+
 
 	/**
 	 * A Spring Security filter chain for the Protocol Endpoints.
@@ -75,7 +75,7 @@ public class SecurityConfig {
 	 * @throws Exception exception
 	 */
 	@Bean
-	@Order(1)
+	@Order(Ordered.HIGHEST_PRECEDENCE)
 	public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http)
 			throws Exception {
 		log.info("### SecurityConfig -> authorizationServerSecurityFilterChain called");
@@ -105,18 +105,56 @@ public class SecurityConfig {
 	public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http)
 			throws Exception {
 		log.info("### SecurityConfig -> defaultSecurityFilterChain called");
-		return http
+		FederatedIdentityConfigurer federatedIdentityConfigurer = new FederatedIdentityConfigurer()
+				.oauth2UserHandler(new UserRepositoryOAuth2UserHandler(googleUserRepository));
+
+		http
 				.authorizeHttpRequests((authorize) -> authorize
 						.requestMatchers(HttpMethod.POST, "api/v1/auth").permitAll()
 						.requestMatchers("/api/v1/clients").permitAll()
+						// for html
+						.requestMatchers("/login").permitAll()
+						.requestMatchers("/assets/**", "/webjars/**").permitAll()
 						.anyRequest().authenticated())
 				// Form login handles the redirect to the login page from the authorization server filter chain
-				.formLogin(Customizer.withDefaults())
+//				.formLogin(Customizer.withDefaults())
+				.formLogin(formLogin -> formLogin
+						.loginPage("/login"))
+				.oauth2Login(oauth2Login -> oauth2Login
+						.loginPage("/login")
+						.successHandler(authenticationSuccessHandler()))
+				//.logout(logout -> logout.logoutSuccessUrl("http://localhost:9000"))
 				.csrf(httpSecurityCsrfConfigurer -> httpSecurityCsrfConfigurer
 						.ignoringRequestMatchers("api/v1/auth", "api/v1/clients")
 						.disable())
-				.build();
+				.apply(federatedIdentityConfigurer);
+		return http.build();
+
 	}
+
+	private AuthenticationSuccessHandler authenticationSuccessHandler() {
+		return new FederatedIdentityAuthenticationSuccessHandler();
+	}
+
+	@Bean
+	public SessionRegistry sessionRegistry() {
+		return new SessionRegistryImpl();
+	}
+
+	@Bean
+	public HttpSessionEventPublisher httpSessionEventPublisher() {
+		return new HttpSessionEventPublisher();
+	}
+
+	@Bean
+	public OAuth2AuthorizationService authorizationService() {
+		return new InMemoryOAuth2AuthorizationService();
+	}
+
+	/*@Bean
+    public OAuth2AuthorizationConsentService authorizationConsentService() {
+        return new InMemoryOAuth2AuthorizationConsentService();
+    }*/
 
 
 	// /**
@@ -137,13 +175,12 @@ public class SecurityConfig {
 	// 			.build();
 	// 	return new InMemoryUserDetailsManager(userDetails);
 	// }
-
 	// Note: RegisteredClientRepository that allow to have inMemory client
 	// is handled and stored in db, no need to have a bean
-	/**
-	 * An instance of RegisteredClientRepository for managing clients.
-	 * @return a RegisteredClientRepository bean to retrieve the configured clients
-	 */
+	// /**
+	//  * An instance of RegisteredClientRepository for managing clients.
+	//  * @return a RegisteredClientRepository bean to retrieve the configured clients
+	//  */
 	//@Bean
 	//public RegisteredClientRepository registeredClientRepository() {
 	//	log.info("### SecurityConfig -> registeredClientRepository called");
@@ -165,7 +202,6 @@ public class SecurityConfig {
 	//			.build();
 	//	return new InMemoryRegisteredClientRepository(oidcClient);
 	//}
-
 	// Note: the client setting is handled and stored in db, no need to have a bean
 	// /**
 	//  * Define the client setting: we could have defined it in registeredClientRepository method directly
@@ -178,7 +214,6 @@ public class SecurityConfig {
 	// 			//.requireAuthorizationConsent(true)
 	// 			.build();
 	// }
-
 	/**
 	 * We can customize token by adding claims.
 	 * Claims are usually data concerning user such as roles for instance, username, etc.

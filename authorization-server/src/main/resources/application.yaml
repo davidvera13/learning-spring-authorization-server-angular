@@ -32,6 +32,24 @@ spring:
       hibernate:
         show_sql: true
         format_sql: true
+  security:
+    oauth2:
+      client:
+        registration:
+          # https://github.com/spring-projects/spring-authorization-server/blob/1.0.x/samples/federated-identity-authorizationserver/src/main/resources/application.yml
+          google-idp:
+            provider: google
+            client-name: oauth2App
+            client-id: ${GOOGLE_CLIENT_ID:810859939157-tv7a4aguss558n2d53q2jn58kqetf1d0.apps.googleusercontent.com}
+            client-secret: ${GOOGLE_CLIENT_SECRET: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}
+            scope:
+              - openid
+              - https://www.googleapis.com/auth/userinfo.profile
+              - https://www.googleapis.com/auth/userinfo.email
+        provider:
+          google:
+            user-name-attribute: email
+
 server:
   port: 9000
 
