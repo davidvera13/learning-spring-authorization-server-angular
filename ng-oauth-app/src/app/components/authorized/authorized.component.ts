@@ -2,6 +2,7 @@ import {Component, OnInit} from '@angular/core';
 import {ActivatedRoute} from "@angular/router";
 import {NgIf} from "@angular/common";
 import {AuthService} from "../../services/auth.service";
+import {TokenService} from "../../services/token.service";
 
 @Component({
   selector: 'app-authorized',
@@ -16,7 +17,8 @@ export class AuthorizedComponent implements OnInit{
   code: string | null;
   constructor(
     private activatedRoute: ActivatedRoute,
-    private authService: AuthService) {
+    private authService: AuthService,
+    private tokenService: TokenService) {
     this.code = null;
   }
 
@@ -29,7 +31,10 @@ export class AuthorizedComponent implements OnInit{
 
   private getToken() {
     this.authService.getToken(this.code!).subscribe({
-      next: res => console.log(res),
+      next: res => {
+        console.log(res);
+        this.tokenService.setToken(res['access_token'], res['refresh_token']);
+      },
       error: err => {
         console.log(err)
         return new Error(err.toString());
