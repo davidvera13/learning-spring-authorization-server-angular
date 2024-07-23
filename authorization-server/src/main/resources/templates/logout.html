@@ -13,7 +13,9 @@
   <h2 class="text-center">Do you really want to logout ?</h2>
   <form class="form-signin" method="post" th:action="@{/logout}">
     <button class="btn btn-lg btn-outline-primary btn-block" type="submit">Yes</button>
-    <button class="btn btn-lg btn-outline-secondary btn-block" href="https://oauthdebugger.com/debug">No</button>
+    <a th:href="@{htpp://localhost:4200}" style="text-decoration: none">
+      <button class="btn btn-lg btn-outline-secondary btn-block" type="button">No</button>
+    </a>
   </form>
 </div>
 </body>

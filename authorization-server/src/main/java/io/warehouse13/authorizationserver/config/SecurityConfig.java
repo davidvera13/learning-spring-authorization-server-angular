@@ -130,7 +130,7 @@ public class SecurityConfig {
 				.oauth2Login(oauth2Login -> oauth2Login
 						.loginPage("/login")
 						.successHandler(authenticationSuccessHandler()))
-				//.logout(logout -> logout.logoutSuccessUrl("http://localhost:9000"))
+				.logout(logout -> logout.logoutSuccessUrl("http://localhost:4200/logout"))
 				.csrf(httpSecurityCsrfConfigurer -> httpSecurityCsrfConfigurer
 						.ignoringRequestMatchers("api/v1/auth", "api/v1/clients")
 						.disable())

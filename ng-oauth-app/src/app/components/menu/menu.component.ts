@@ -25,15 +25,13 @@ export class MenuComponent {
     code_challenge: environment.codeChallenge
   }
   loginUrl: string;
+  logoutUrl: string;
 
   constructor() {
     const httpParams = new HttpParams({
       fromObject: this.params
     });
     this.loginUrl = this.authorizeUri + httpParams.toString();
-  }
-
-  onLogout(): void {
-
+    this.logoutUrl = environment.logoutUrl;
   }
 }

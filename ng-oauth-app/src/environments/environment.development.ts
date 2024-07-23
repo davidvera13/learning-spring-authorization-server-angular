@@ -14,7 +14,8 @@ export const environment = {
   state: '1r1gilg083j',
   nonce: 'm1hi8yrgc1p',
   tokenEndpoint: "http://localhost:9000/oauth2/token",
-  resourceServerUrl: "http://localhost:8080/v1/api/resources"
+  resourceServerUrl: "http://localhost:8080/v1/api/resources",
+  logoutUrl: "http://localhost:9000/logout"
 };
 
 
