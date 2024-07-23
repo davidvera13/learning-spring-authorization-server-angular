@@ -20,6 +20,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.session.SessionRegistry;
@@ -37,11 +38,15 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -107,8 +112,10 @@ public class SecurityConfig {
 		log.info("### SecurityConfig -> defaultSecurityFilterChain called");
 		FederatedIdentityConfigurer federatedIdentityConfigurer = new FederatedIdentityConfigurer()
 				.oauth2UserHandler(new UserRepositoryOAuth2UserHandler(googleUserRepository));
-
 		http
+				.cors(corsCustomizer -> corsCustomizer.configurationSource(corsConfigurationSource()))
+				//.csrf((csrf) -> csrf.disable())
+				.csrf(AbstractHttpConfigurer::disable)
 				.authorizeHttpRequests((authorize) -> authorize
 						.requestMatchers(HttpMethod.POST, "api/v1/auth").permitAll()
 						.requestMatchers("/api/v1/clients").permitAll()
@@ -318,6 +325,28 @@ public class SecurityConfig {
 		return AuthorizationServerSettings.builder()
 				.issuer("http://localhost:9000")
 				.build();
+	}
+
+	public CorsConfigurationSource corsConfigurationSource() {
+		final CorsConfiguration corsConfiguration = new CorsConfiguration();
+		final UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+		corsConfiguration.addAllowedOriginPattern("*");
+		//corsConfiguration.setAllowedOrigins(List.of("*"));
+		corsConfiguration.setAllowedMethods(List.of(
+				HttpMethod.GET.name(),
+				HttpMethod.HEAD.name(),
+				HttpMethod.POST.name(),
+				HttpMethod.PUT.name(),
+				HttpMethod.PATCH.name(),
+				HttpMethod.DELETE.name(),
+				HttpMethod.OPTIONS.name(),
+				HttpMethod.TRACE.name()));
+		corsConfiguration.setAllowCredentials(true);
+		corsConfiguration.setAllowedHeaders(List.of("*"));
+		corsConfiguration.setExposedHeaders(List.of("*"));
+
+		source.registerCorsConfiguration("/**", corsConfiguration);
+		return source;
 	}
 
 }
