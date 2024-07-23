@@ -13,7 +13,8 @@ export const environment = {
   grantType: "authorization_code",
   state: '1r1gilg083j',
   nonce: 'm1hi8yrgc1p',
-  tokenEndpoint: "http://localhost:9000/oauth2/token"
+  tokenEndpoint: "http://localhost:9000/oauth2/token",
+  resourceServerUrl: "http://localhost:8080/v1/api/resources"
 };
 
 
