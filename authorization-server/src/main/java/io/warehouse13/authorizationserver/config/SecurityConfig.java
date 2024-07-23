@@ -330,8 +330,6 @@ public class SecurityConfig {
 	public CorsConfigurationSource corsConfigurationSource() {
 		final CorsConfiguration corsConfiguration = new CorsConfiguration();
 		final UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-		corsConfiguration.addAllowedOriginPattern("*");
-		//corsConfiguration.setAllowedOrigins(List.of("*"));
 		corsConfiguration.setAllowedMethods(List.of(
 				HttpMethod.GET.name(),
 				HttpMethod.HEAD.name(),
@@ -344,7 +342,10 @@ public class SecurityConfig {
 		corsConfiguration.setAllowCredentials(true);
 		corsConfiguration.setAllowedHeaders(List.of("*"));
 		corsConfiguration.setExposedHeaders(List.of("*"));
-
+		corsConfiguration.addAllowedOriginPattern("*");
+		corsConfiguration.addAllowedHeader("*");
+		corsConfiguration.addAllowedMethod("*");
+		corsConfiguration.setAllowCredentials(true);
 		source.registerCorsConfiguration("/**", corsConfiguration);
 		return source;
 	}
