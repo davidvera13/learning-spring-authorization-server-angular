@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import {Component, OnInit, ViewChild} from '@angular/core';
+import {NavigationEnd, Router, RouterEvent, RouterOutlet} from '@angular/router';
 import {MenuComponent} from "./components/menu/menu.component";
+import {filter} from "rxjs/operators";
 
 @Component({
   selector: 'app-root',
@@ -9,6 +10,21 @@ import {MenuComponent} from "./components/menu/menu.component";
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
-export class AppComponent {
+export class AppComponent implements OnInit{
   title = 'ng-oauth-app';
+  @ViewChild('menu') menu!: MenuComponent;
+
+  constructor(
+      private router: Router
+  ) {
+  }
+
+  ngOnInit(): void {
+    this.router.events.subscribe((event) => {
+      if (event instanceof NavigationEnd)
+        this.menu.getLogged()
+    })
+  }
+
+
 }

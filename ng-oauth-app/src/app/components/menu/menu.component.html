@@ -9,16 +9,16 @@
         <li class="nav-item">
           <a class="nav-link active" aria-current="page" routerLink="/">Home</a>
         </li>
-        <li class="nav-item">
+        <li class="nav-item" *ngIf="isLogged">
           <a class="nav-link" routerLink="/users">Users</a>
         </li>
-        <li class="nav-item">
+        <li class="nav-item" *ngIf="isAdmin">
           <a class="nav-link" routerLink="/admins">Admins</a>
         </li>
       </ul>
       <form class="d-flex" role="search">
-        <a class="btn btn-outline-success" href="{{loginUrl}}">Login</a> &nbsp;
-        <a class="btn btn-outline-danger" href="{{logoutUrl}}">Logout</a>
+        <a class="btn btn-outline-success" href="{{loginUrl}}" *ngIf="!isLogged">Login</a> &nbsp;
+        <a class="btn btn-outline-danger" href="{{logoutUrl}}" *ngIf="isLogged">Logout</a>
       </form>
     </div>
   </div>
