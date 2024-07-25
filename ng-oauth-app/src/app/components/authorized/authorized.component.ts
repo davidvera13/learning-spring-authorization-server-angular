@@ -31,7 +31,9 @@ export class AuthorizedComponent implements OnInit{
   }
 
   private getToken() {
-    this.authService.getToken(this.code!).subscribe({
+    const codeVerifier = this.tokenService.getVerifier();
+    this.tokenService.deleteVerifier();
+    this.authService.getToken(this.code!, codeVerifier).subscribe({
       next: res => {
         console.log(res);
         this.tokenService.setToken(res['access_token'], res['refresh_token']);

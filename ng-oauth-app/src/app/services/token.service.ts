@@ -1,7 +1,12 @@
 import { Injectable } from '@angular/core';
+import pkceChallenge from "pkce-challenge";
+import {environment} from "../../environments/environment.development";
+import CryptoJS from "crypto-js";
+
 
 const ACCESS_TOKEN = "access_token";
 const REFRESH_TOKEN = "refresh_token";
+const CODE_VERIFIER = "code_verifier";
 
 @Injectable({
   providedIn: 'root'
@@ -54,6 +59,42 @@ export class TokenService {
     const values = JSON.parse(decoded);
     const roles = values["roles"];
     return roles.indexOf('ROLE_USER') >= 0;
+  }
+
+
+  /**
+   * set the verifier
+   * @param codeVerifier code verifier to store
+   */
+  setVerifier(codeVerifier: string): void {
+    if(localStorage.getItem(CODE_VERIFIER))
+      this.deleteVerifier();
+    // localStorage.setItem(CODE_VERIFIER, codeVerifier);
+
+    const encrypted = CryptoJS.AES
+        .encrypt(codeVerifier, environment.secretPKCE);
+    console.log("encrypted", encrypted)
+    localStorage.setItem(CODE_VERIFIER, encrypted.toString());
+  }
+
+
+  /**
+   * retrieve the verifier from local storage
+   */
+  getVerifier(): string {
+    //return localStorage.getItem(CODE_VERIFIER)!;
+    const encrypted = localStorage.getItem(CODE_VERIFIER)!;
+    const decrypted = CryptoJS.AES.decrypt(encrypted, environment.secretPKCE)
+        .toString(CryptoJS.enc.Utf8);
+    console.log("decrypted", decrypted);
+    return decrypted;
+  }
+
+  /**
+   * remove code verifier from local storage
+   */
+  deleteVerifier() {
+    localStorage.removeItem(CODE_VERIFIER);
   }
 }
 

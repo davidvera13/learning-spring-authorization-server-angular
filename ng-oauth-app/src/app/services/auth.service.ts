@@ -13,13 +13,13 @@ export class AuthService {
     this.tokenUrl = environment.tokenEndpoint;
   }
 
-  getToken(code: string): Observable<any> {
+  getToken(code: string, codeVerifier: string): Observable<any> {
     let body = new URLSearchParams();
     body.set("grant_type", environment.grantType);
     body.set("client_id", environment.clientId);
     body.set("redirect_uri", environment.redirectUri);
     body.set("scope", environment.scope);
-    body.set("code_verifier", environment.codeVerifier);
+    body.set("code_verifier", codeVerifier);
     body.set("code", code);
     const basicAuth = 'Basic ' + btoa('ng-oidc-client:secret')
     const headers = new HttpHeaders({

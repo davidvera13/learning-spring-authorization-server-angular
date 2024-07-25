@@ -1,10 +1,11 @@
 import {Component, OnInit} from '@angular/core';
 import {environment} from "../../../environments/environment.development";
-import {Router, RouterLink} from "@angular/router";
+import {RouterLink} from "@angular/router";
 import {HttpParams} from "@angular/common/http";
-import {DomSanitizer} from "@angular/platform-browser";
 import {TokenService} from "../../services/token.service";
 import {NgIf} from "@angular/common";
+import pkceChallenge from "pkce-challenge";
+
 
 @Component({
   selector: 'app-menu',
@@ -18,17 +19,9 @@ import {NgIf} from "@angular/common";
 })
 export class MenuComponent implements OnInit {
   authorizeUri = environment.authorizeUri;
-  params: any = {
-    redirect_uri : environment.redirectUri,
-    client_id: environment.clientId ,
-    scope: environment.scope,
-    response_type: environment.responseType,
-    response_mode: environment.responseMode,
-    code_challenge_method: environment.codeChallengeMethod,
-    code_challenge: environment.codeChallenge
-  }
-  loginUrl: string;
-  logoutUrl: string;
+
+  loginUrl!: string;
+  logoutUrl!: string;
   isLogged!: boolean;
   isAdmin!: boolean;
   isUser!: boolean;
@@ -36,11 +29,26 @@ export class MenuComponent implements OnInit {
   constructor(
     private tokenService: TokenService
   ) {
-    const httpParams = new HttpParams({
-      fromObject: this.params
-    });
-    this.loginUrl = this.authorizeUri + httpParams.toString();
-    this.logoutUrl = environment.logoutUrl;
+    const codes = this.generateCodes();
+    codes.then(res => {
+      const codeChallenge = res.code_challenge;
+      const codeVerifier = res.code_verifier;
+      this.tokenService.setVerifier(codeVerifier);
+      let params: any = {
+        redirect_uri : environment.redirectUri,
+        client_id: environment.clientId ,
+        scope: environment.scope,
+        response_type: environment.responseType,
+        response_mode: environment.responseMode,
+        code_challenge_method: environment.codeChallengeMethod,
+        code_challenge: codeChallenge
+      }
+      const httpParams = new HttpParams({
+        fromObject: params
+      });
+      this.loginUrl = this.authorizeUri + httpParams.toString();
+      this.logoutUrl = environment.logoutUrl;
+    })
   }
 
   ngOnInit(): void {
@@ -55,5 +63,10 @@ export class MenuComponent implements OnInit {
     this.isUser = this.tokenService.isUser();
 
       console.log(this.isAdmin);
+  }
+
+
+  async generateCodes(): Promise<any> {
+    return await pkceChallenge();
   }
 }
