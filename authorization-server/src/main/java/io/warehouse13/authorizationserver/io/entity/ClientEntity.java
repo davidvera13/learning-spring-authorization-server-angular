@@ -112,6 +112,7 @@ public class ClientEntity {
 						scope.addAll(client.getScopes()))
 				.clientSettings(ClientSettings.builder()
 						.requireProofKey(client.isRequiredProofKey())
+						.requireAuthorizationConsent(Boolean.TRUE)
 						.build());
 		return builder.build();
 	}
