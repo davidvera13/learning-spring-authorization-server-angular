@@ -71,6 +71,7 @@ public class SecurityConfig {
 	private final ClientService clientService;
 	private final PasswordEncoder passwordEncoder;
 	private final GoogleUserRepository googleUserRepository;
+	private static final String CONSENT_PAGE = "/oauth2/consent";
 
 
 	/**
@@ -86,6 +87,7 @@ public class SecurityConfig {
 		log.info("### SecurityConfig -> authorizationServerSecurityFilterChain called");
 		OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
 		http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
+				.authorizationEndpoint(auth -> auth.consentPage(CONSENT_PAGE))
 				// Enable OpenID Connect 1.0
 				.oidc(Customizer.withDefaults());
 		return http
